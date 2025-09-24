@@ -23,8 +23,33 @@ Redash features:
 
 ## Getting Started
 
-* [Setting up Redash instance](https://redash.io/help/open-source/setup) (includes links to ready-made AWS/GCE images).
-* [Documentation](https://redash.io/help/).
+- [Setting up Redash instance](https://redash.io/help/open-source/setup) (includes links to ready-made AWS/GCE images).
+- [Documentation](https://redash.io/help/).
+
+## Deploy with Dokploy
+
+This repository includes production-ready Docker Compose configuration for easy deployment with Dokploy:
+
+### Quick Deploy
+
+1. Fork this repository or use it directly
+2. Connect your GitHub repository to Dokploy
+3. Set environment variables (copy from `.env.example`)
+4. Use `docker-compose.prod.yml` as your compose file
+5. Deploy!
+
+### Manual Deploy
+
+```bash
+# Clone and configure
+git clone https://github.com/your-username/redash.git
+cd redash
+cp .env.example .env
+# Edit .env with your production values
+./deploy.sh
+```
+
+For detailed deployment instructions, see [DOKPLOY.md](DOKPLOY.md).
 
 ## Supported Data Sources
 
@@ -102,14 +127,14 @@ Redash supports more than 35 SQL and NoSQL [data sources](https://redash.io/help
 
 ## Getting Help
 
-* Issues: https://github.com/getredash/redash/issues
-* Discussion Forum: https://github.com/getredash/redash/discussions/
-* Development Discussion: https://discord.gg/tN5MdmfGBp
+- Issues: https://github.com/getredash/redash/issues
+- Discussion Forum: https://github.com/getredash/redash/discussions/
+- Development Discussion: https://discord.gg/tN5MdmfGBp
 
 ## Reporting Bugs and Contributing Code
 
-* Want to report a bug or request a feature? Please open [an issue](https://github.com/getredash/redash/issues/new).
-* Want to help us build **_Redash_**? Fork the project, edit in a [dev environment](https://github.com/getredash/redash/wiki/Local-development-setup) and make a pull request. We need all the help we can get!
+- Want to report a bug or request a feature? Please open [an issue](https://github.com/getredash/redash/issues/new).
+- Want to help us build **_Redash_**? Fork the project, edit in a [dev environment](https://github.com/getredash/redash/wiki/Local-development-setup) and make a pull request. We need all the help we can get!
 
 ## Security
 
