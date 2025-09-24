@@ -1,0 +1,159 @@
+# Docker Compose para Dokploy - VERSION CON IP FIJA
+# Solución para problemas de resolución DNS
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    # IP fija para Redis
+    networks:
+      default:
+        ipv4_address: 172.20.0.10
+
+  postgres:
+    image: postgres:13-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "postgres"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    # IP fija para Postgres
+    networks:
+      default:
+        ipv4_address: 172.20.0.11
+
+  server:
+    image: redash/redash:latest
+    command: server
+    ports:
+      - "${REDASH_EXTERNAL_PORT:-5001}:${REDASH_INTERNAL_PORT:-5000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      REDASH_WEB_WORKERS: 4
+      # Usar IPs fijas en lugar de nombres
+      REDASH_REDIS_URL: "redis://172.20.0.10:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@172.20.0.11/postgres"
+      REDASH_CELERY_BROKER: "redis://172.20.0.10:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+      REDASH_LOG_LEVEL: "INFO"
+      REDASH_ENFORCE_CSRF: "true"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${REDASH_INTERNAL_PORT:-5000}/ping",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # IP fija para Server
+    networks:
+      default:
+        ipv4_address: 172.20.0.12
+
+  scheduler:
+    image: redash/redash:latest
+    command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      QUEUES: "celery"
+      REDASH_REDIS_URL: "redis://172.20.0.10:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@172.20.0.11/postgres"
+      REDASH_CELERY_BROKER: "redis://172.20.0.10:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: 172.20.0.13
+
+  scheduled_worker:
+    image: redash/redash:latest
+    command: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      QUEUES: "scheduled_queries,schemas"
+      WORKERS_COUNT: 1
+      REDASH_REDIS_URL: "redis://172.20.0.10:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@172.20.0.11/postgres"
+      REDASH_CELERY_BROKER: "redis://172.20.0.10:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: 172.20.0.14
+
+  adhoc_worker:
+    image: redash/redash:latest
+    command: worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      QUEUES: "queries"
+      WORKERS_COUNT: 2
+      REDASH_REDIS_URL: "redis://172.20.0.10:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@172.20.0.11/postgres"
+      REDASH_CELERY_BROKER: "redis://172.20.0.10:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: 172.20.0.15
+
+# Red personalizada con IPs fijas
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+  redis_data:
