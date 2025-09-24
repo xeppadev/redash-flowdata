@@ -1,27 +1,98 @@
-version: "3.8"
+# Dokploy-Compatible Docker Compose for Redash
+# No version specified (recommended for modern Docker Compose)
+# Uses default bridge network (compatible with Dokploy)
+
+x-redash-service: &redash-service
+  image: redash/redash:latest
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  environment:
+    REDASH_REDIS_URL: "redis://redis:6379/0"
+    REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+    REDASH_CELERY_BROKER: "redis://redis:6379/0"
+  restart: unless-stopped
 
 services:
+  server:
+    <<: *redash-service
+    command: server
+    ports:
+      - "${REDASH_PORT:-5001}:5000"
+    environment:
+      REDASH_WEB_WORKERS: 4
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+      REDASH_CELERY_BROKER: "redis://redis:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+      REDASH_LOG_LEVEL: "INFO"
+      REDASH_ENFORCE_CSRF: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  scheduler:
+    <<: *redash-service
+    command: scheduler
+    environment:
+      QUEUES: "celery"
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+      REDASH_CELERY_BROKER: "redis://redis:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+
+  scheduled_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      QUEUES: "scheduled_queries,schemas"
+      WORKERS_COUNT: 1
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+      REDASH_CELERY_BROKER: "redis://redis:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+
+  adhoc_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      QUEUES: "queries"
+      WORKERS_COUNT: 2
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+      REDASH_CELERY_BROKER: "redis://redis:6379/0"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
+      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
+      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
+
   redis:
     image: redis:7-alpine
-    container_name: redash_redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 10s
-    networks:
-      - redash_network
-    ports:
-      - "6379"
 
   postgres:
     image: postgres:13-alpine
-    container_name: redash_postgres
     restart: unless-stopped
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
@@ -31,147 +102,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 10s
-    networks:
-      - redash_network
-    ports:
-      - "5432"
-
-  server:
-    image: redash/redash:latest
-    container_name: redash_server
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      # Variables de Dokploy
-      REDASH_HOST: "${REDASH_HOST:-https://redash-dev.mmhighmetrik.com}"
-      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-generate-a-secret-key}"
-      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-generate-a-cookie-secret}"
-      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-generate-a-csrf-secret}"
-      REDASH_PORT: "${REDASH_PORT:-5001}"
-
-      # Configuración de conexiones (hardcoded para garantizar funcionamiento)
-      REDASH_REDIS_URL: "redis://redis:6379/0"
-      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
-      REDASH_CELERY_BROKER: "redis://redis:6379/0"
-
-      # Configuración adicional
-      REDASH_LOG_LEVEL: "INFO"
-      REDASH_ENFORCE_CSRF: "true"
-      REDASH_WEB_WORKERS: "4"
-      REDASH_GUNICORN_TIMEOUT: "60"
-      REDASH_RATELIMIT_ENABLED: "true"
-      REDASH_FEATURE_DISABLE_REFRESH_QUERIES: "false"
-      REDASH_FEATURE_SHOW_PERMISSIONS_CONTROL: "true"
-
-      # Variables para evitar problemas de inicialización
-      REDASH_DATABASE_QUERY_TIMEOUT: "60"
-      REDASH_SCHEMAS_REFRESH_SCHEDULE: "30"
-    command: server
-    ports:
-      - "${REDASH_PORT:-5001}:5000"
-    restart: unless-stopped
-    networks:
-      - redash_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 90s
-
-  scheduler:
-    image: redash/redash:latest
-    container_name: redash_scheduler
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      server:
-        condition: service_started
-    environment:
-      REDASH_HOST: "${REDASH_HOST:-https://redash-dev.mmhighmetrik.com}"
-      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-generate-a-secret-key}"
-      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-generate-a-cookie-secret}"
-      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-generate-a-csrf-secret}"
-      REDASH_REDIS_URL: "redis://redis:6379/0"
-      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
-      REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_LOG_LEVEL: "INFO"
-      QUEUES: "celery"
-    command: scheduler
-    restart: unless-stopped
-    networks:
-      - redash_network
-
-  scheduled_worker:
-    image: redash/redash:latest
-    container_name: redash_scheduled_worker
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      server:
-        condition: service_started
-    environment:
-      REDASH_HOST: "${REDASH_HOST:-https://redash-dev.mmhighmetrik.com}"
-      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-generate-a-secret-key}"
-      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-generate-a-cookie-secret}"
-      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-generate-a-csrf-secret}"
-      REDASH_REDIS_URL: "redis://redis:6379/0"
-      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
-      REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_LOG_LEVEL: "INFO"
-      QUEUES: "scheduled_queries,schemas"
-      WORKERS_COUNT: "1"
-    command: worker
-    restart: unless-stopped
-    networks:
-      - redash_network
-
-  adhoc_worker:
-    image: redash/redash:latest
-    container_name: redash_adhoc_worker
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      server:
-        condition: service_started
-    environment:
-      REDASH_HOST: "${REDASH_HOST:-https://redash-dev.mmhighmetrik.com}"
-      REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-generate-a-secret-key}"
-      REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-generate-a-cookie-secret}"
-      REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-generate-a-csrf-secret}"
-      REDASH_REDIS_URL: "redis://redis:6379/0"
-      REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
-      REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_LOG_LEVEL: "INFO"
-      QUEUES: "queries"
-      WORKERS_COUNT: "2"
-    command: worker
-    restart: unless-stopped
-    networks:
-      - redash_network
-
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-
-networks:
-  redash_network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
