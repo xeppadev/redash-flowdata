@@ -20,20 +20,26 @@ services:
     <<: *redash-service
     command: server
     ports:
-      - "${REDASH_PORT:-5001}:5000"
+      - "${REDASH_EXTERNAL_PORT:-5001}:${REDASH_INTERNAL_PORT:-5000}"
     environment:
       REDASH_WEB_WORKERS: 4
       REDASH_REDIS_URL: "redis://redis:6379/0"
       REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
       REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
       REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
       REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
       REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
       REDASH_LOG_LEVEL: "INFO"
       REDASH_ENFORCE_CSRF: "true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/ping"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${REDASH_INTERNAL_PORT:-5000}/ping",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -47,7 +53,7 @@ services:
       REDASH_REDIS_URL: "redis://redis:6379/0"
       REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
       REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
       REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
       REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
       REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
@@ -61,7 +67,7 @@ services:
       REDASH_REDIS_URL: "redis://redis:6379/0"
       REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
       REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
       REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
       REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
       REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
@@ -75,7 +81,7 @@ services:
       REDASH_REDIS_URL: "redis://redis:6379/0"
       REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
       REDASH_CELERY_BROKER: "redis://redis:6379/0"
-      REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
+      REDASH_HOST: "${REDASH_HOST:-http://localhost:${REDASH_EXTERNAL_PORT:-5001}}"
       REDASH_SECRET_KEY: "${REDASH_SECRET_KEY:-change-me}"
       REDASH_COOKIE_SECRET: "${REDASH_COOKIE_SECRET:-change-me}"
       REDASH_WTF_CSRF_SECRET_KEY: "${REDASH_WTF_CSRF_SECRET_KEY:-change-me}"
