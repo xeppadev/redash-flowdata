@@ -10,6 +10,20 @@
 - **Build Method**: Docker Compose
 - **Compose File**: docker-compose.prod.yml
 
+## Port Configuration Issue Fix
+
+If you encounter the error "port is already allocated" for port 80, use the alternative compose file:
+
+- **Compose File**: docker-compose.dokploy.yml (uses port 3000 instead)
+
+Or manually change the server port in docker-compose.prod.yml:
+
+```yaml
+server:
+  ports:
+    - "3000:5000" # Change from 80:5000 to 3000:5000
+```
+
 ## Environment Variables
 
 Copy the contents of `.env.example` to your Dokploy environment variables and modify:
@@ -36,8 +50,11 @@ REDASH_MAIL_DEFAULT_SENDER=redash@your-domain.com
 
 ## Port Configuration
 
-- **Main Port**: 80 (HTTP)
-- **Secondary Port**: 443 (HTTPS, if SSL is configured)
+- **Main Port**: 3000 (for docker-compose.dokploy.yml)
+- **Alternative Port**: 80 (for docker-compose.prod.yml, may conflict)
+- **Container Port**: 5000 (internal Redash application port)
+
+**Note**: Dokploy automatically handles SSL/TLS and domain routing, so you don't need to expose port 80 or 443 directly.
 
 ## Domain Configuration
 
