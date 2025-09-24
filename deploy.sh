@@ -81,6 +81,16 @@ if grep -q "https://your-domain.com" .env; then
     exit 1
 fi
 
+# Check if port is configured
+if ! grep -q "REDASH_PORT=" .env; then
+    echo -e "${YELLOW}⚠️  REDASH_PORT not set. Adding default port 3000...${NC}"
+    echo "REDASH_PORT=3000" >> .env
+    echo -e "${GREEN}✅ REDASH_PORT=3000 added to .env${NC}"
+else
+    CURRENT_PORT=$(grep "REDASH_PORT=" .env | cut -d'=' -f2)
+    echo -e "${GREEN}✅ Using port: $CURRENT_PORT${NC}"
+fi
+
 echo -e "${GREEN}✅ Environment configuration looks good${NC}"
 
 # Create necessary directories
