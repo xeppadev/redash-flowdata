@@ -6,8 +6,6 @@ x-redash-service: &redash-service
       condition: service_healthy
     redis:
       condition: service_healthy
-  networks:
-    - redash-app
 
 x-redash-environment: &redash-environment
   REDASH_HOST: "${REDASH_HOST:-http://localhost:5001}"
